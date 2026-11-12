@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioGuard 74 — Virus Quarantine & Treatment Facility</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Clinical Temperature Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Brand & Facility Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-600 flex items-center justify-center text-white text-xl font-black shadow-inner">
+            ☣️
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-extrabold text-base sm:text-lg tracking-tight text-white">BioGuard 74</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-950 text-sky-400 border border-sky-800">
+                Quarantine & Treatment Facility
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400">74-Bed Clinical Quarantine Management System</p>
+          </div>
+        </div>
+
+        <!-- Controls: Simulation Day, Temp Unit, Demo Reset -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <div id="facility-day-display" class="hidden sm:inline-block px-3 py-1 bg-slate-800 text-sky-300 rounded-lg text-xs font-semibold border border-slate-700">
+            Facility Operation Day 8
+          </div>
+
+          <!-- Unit Selector -->
+          <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+            <button onclick="toggleUnit('C')" data-unit="C" class="unit-btn px-2.5 py-1 text-xs font-bold bg-sky-600 text-white rounded-md">°C</button>
+            <button onclick="toggleUnit('F')" data-unit="F" class="unit-btn px-2.5 py-1 text-xs font-medium bg-slate-800 text-slate-400 rounded-md hover:text-white">°F</button>
+          </div>
+
+          <!-- Simulation Button -->
+          <button onclick="simulateNextDay()" title="Advance to next 24-hour cycle" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1 shadow-sm">
+            <span>⏩ Next Day</span>
+          </button>
+
+          <!-- Reset Button -->
+          <button onclick="resetFacilityData()" title="Reset to benchmark data" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition text-sm">
+            🔄
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Role Navigation Bar -->
+      <div class="flex overflow-x-auto py-2.5 space-x-2 border-t border-slate-800/80 scrollbar-none">
+        <button onclick="switchRole('nurse')" data-role="nurse" class="role-pill px-4 py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm border border-slate-200">
+          🩺 Nurse Triage (Vitals)
+        </button>
+        <button onclick="switchRole('doctor')" data-role="doctor" class="role-pill px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800">
+          👨‍⚕️ Doctor Rounds & Discharge
+        </button>
+        <button onclick="switchRole('admin')" data-role="admin" class="role-pill px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800">
+          📋 Admin & 74-Bed Matrix
+        </button>
+        <button onclick="switchRole('director')" data-role="director" class="role-pill px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800">
+          📊 Director Analytics (15% Benchmark)
+        </button>
+        <button onclick="switchRole('unified')" data-role="unified" class="role-pill px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800">
+          🌐 Unified Operations
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Facility Metrics Strip -->
+  <section class="bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div id="metric-occupancy" class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80"></div>
+        <div id="metric-vitals" class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80"></div>
+        <div id="metric-rounds" class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80"></div>
+        <div id="metric-discharge" class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80"></div>
+        <div id="metric-mortality" class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 col-span-2 sm:col-span-1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Director Quality Alert Banner (Dynamic) -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+    <div id="director-alert-banner" class="hidden"></div>
+  </div>
+
+  <!-- MAIN APP WORKSPACE -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+
+    <!-- ===================================== -->
+    <!-- 1. NURSE WORKSPACE VIEW               -->
+    <!-- ===================================== -->
+    <section id="view-nurse" class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>🩺 Nurse Daily Temperature Worklist</span>
+          </h2>
+          <p class="text-xs text-slate-500">Record once-daily temperature for all 74 quarantine patients. Automatically flags fever and updates doctor queue.</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <!-- Filter Select -->
+          <select id="nurse-filter-select" onchange="renderNurseView()" class="text-xs border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium">
+            <option value="pending">Pending Morning Vitals (Urgent)</option>
+            <option value="completed">Vitals Completed Today</option>
+            <option value="fever">Active High Fever (≥38.0°C)</option>
+            <option value="all">All Quarantine Patients (74)</option>
+          </select>
+
+          <!-- Search Input -->
+          <input type="text" id="nurse-search-input" oninput="renderNurseView()" placeholder="Search room or name..." class="text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500 w-36 sm:w-48">
+        </div>
+      </div>
+
+      <!-- Nurse Patient Cards Grid -->
+      <div id="nurse-patient-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- ===================================== -->
+    <!-- 2. DOCTOR WORKSPACE VIEW              -->
+    <!-- ===================================== -->
+    <section id="view-doctor" class="hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>👨‍⚕️ Attending Physician Clinical Rounds</span>
+          </h2>
+          <p class="text-xs text-slate-500">Review morning vitals, monitor 3-day fever-free streak, adjust treatments, and authorize discharges.</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <!-- Filter Select -->
+          <select id="doctor-filter-select" onchange="renderDoctorView()" class="text-xs border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+            <option value="ready">Ready for Doctor (Vitals Taken Today)</option>
+            <option value="discharge_ready">⭐ Cured: 3 Days Fever-Free (Discharge Eligible)</option>
+            <option value="visited">Completed Rounds Today</option>
+            <option value="unmeasured">Awaiting Nurse Temperature (Unmeasured)</option>
+            <option value="all">All Patients (74)</option>
+          </select>
+
+          <!-- Search Input -->
+          <input type="text" id="doctor-search-input" oninput="renderDoctorView()" placeholder="Search room or name..." class="text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36 sm:w-48">
+        </div>
+      </div>
+
+      <!-- Doctor Patient Cards Grid -->
+      <div id="doctor-patient-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- ===================================== -->
+    <!-- 3. ADMIN & BED MANAGEMENT VIEW        -->
+    <!-- ===================================== -->
+    <section id="view-admin" class="hidden space-y-6">
+      
+      <!-- Bed Matrix Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>📋 Facility Room Board (Rooms 1 to 74)</span>
+          </h2>
+          <p class="text-xs text-slate-500">Live operational grid of all 74 quarantine rooms. Process discharges and admit new patients.</p>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-2 text-[11px] text-slate-500">
+            <span class="flex items-center space-x-1"><span class="w-3 h-3 rounded bg-sky-200 border border-sky-400 inline-block"></span><span>Occupied</span></span>
+            <span class="flex items-center space-x-1"><span class="w-3 h-3 rounded bg-amber-200 border border-amber-400 inline-block"></span><span>Discharge Approved</span></span>
+            <span class="flex items-center space-x-1"><span class="w-3 h-3 rounded bg-rose-200 border border-rose-400 inline-block"></span><span>High Fever</span></span>
+            <span class="flex items-center space-x-1"><span class="w-3 h-3 rounded bg-emerald-200 border border-emerald-400 inline-block"></span><span>Available</span></span>
+          </div>
+
+          <button id="admin-admit-btn" onclick="openAdmitModal()" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center space-x-1">
+            <span>➕ Admit Patient</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Doctor-Approved Discharges Action Queue -->
+      <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
+        <h3 class="text-sm font-bold text-amber-900 mb-2 flex items-center space-x-2">
+          <span>🔔 Doctor-Approved Discharges Pending Administrative Departure</span>
+        </h3>
+        <p class="text-xs text-slate-500 mb-3">These patients have reached 3 consecutive fever-free days and have been approved by the physician. Finalize discharge to free their bed immediately.</p>
+        <div id="admin-discharge-list" class="space-y-2">
+          <!-- Injected via JavaScript -->
+        </div>
+      </div>
+
+      <!-- 74-Bed Interactive Matrix Grid -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 mb-3">All 74 Quarantine Rooms:</h3>
+        <div id="admin-bed-matrix" class="bed-grid">
+          <!-- 74 Bed Tiles injected via JavaScript -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================== -->
+    <!-- 4. DIRECTOR ANALYTICS VIEW            -->
+    <!-- ===================================== -->
+    <section id="view-director" class="hidden space-y-6">
+      
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-900">📊 Facility Quality Governance & Benchmark Monitor</h2>
+        <p class="text-xs text-slate-500">Track treatment efficacy against the 15% virus mortality rate benchmark and detect operational bottlenecks.</p>
+      </div>
+
+      <!-- Executive KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        
+        <!-- Mortality Rate Card -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Facility Mortality Rate</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border">Expected: 15.0%</span>
+            </div>
+            <div class="text-3xl font-extrabold text-slate-900 my-1" id="dir-mortality-val">--%</div>
+            <div id="dir-mortality-status" class="text-xs font-semibold text-emerald-600">
+              ✓ Within Target Threshold
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+            Formula: <code class="bg-slate-100 px-1 py-0.5 rounded text-[10px]">Deceased / (Discharged + Deceased)</code>
+          </div>
+        </div>
+
+        <!-- Cure Rate Card -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Treatment Cure Rate</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border">Expected: 85.0%</span>
+            </div>
+            <div class="text-3xl font-extrabold text-emerald-600 my-1" id="dir-cure-val">--%</div>
+            <div class="text-xs text-slate-500">
+              Based on 3-day fever-free discharge criteria
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+            Formula: <code class="bg-slate-100 px-1 py-0.5 rounded text-[10px]">Cured / (Discharged + Deceased)</code>
+          </div>
+        </div>
+
+        <!-- Bed Turnover & Capacity Card -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Active Bed Occupancy</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border">Capacity: 74</span>
+            </div>
+            <div class="text-3xl font-extrabold text-sky-600 my-1" id="dir-active-cases">74 / 74</div>
+            <div class="text-xs text-slate-500">
+              Maximum physical quarantine capacity
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+            Available beds ready for intake: <span class="font-bold text-slate-800" id="dir-free-beds-stat">0</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Operational Bottleneck Diagnostic Grid -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 mb-3">Operational Workflow Bottleneck Analysis</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span class="text-xs font-bold text-slate-700 block mb-1">1. Morning Temperature Lag</span>
+            <p id="dir-bottleneck-vitals" class="text-xs text-slate-600">--</p>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span class="text-xs font-bold text-slate-700 block mb-1">2. Doctor Round Readiness Lag</span>
+            <p id="dir-bottleneck-rounds" class="text-xs text-slate-600">--</p>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span class="text-xs font-bold text-slate-700 block mb-1">3. Bed Discharge Turnover Lag</span>
+            <p id="dir-bottleneck-discharge" class="text-xs text-slate-600">--</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historical Cumulative Statistics -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 mb-3">Facility Outcome Totals:</h3>
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span class="text-xs text-slate-500 block">Total Closed Cases</span>
+            <span class="text-xl font-bold text-slate-800" id="dir-closed-cases">--</span>
+          </div>
+          <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+            <span class="text-xs text-emerald-700 block">Total Cured Discharges</span>
+            <span class="text-xl font-bold text-emerald-800" id="dir-discharged-cases">--</span>
+          </div>
+          <div class="p-3 bg-rose-50 rounded-lg border border-rose-200">
+            <span class="text-xs text-rose-700 block">Total Recorded Deceased</span>
+            <span class="text-xl font-bold text-rose-800" id="dir-deceased-cases">--</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ===================================== -->
+  <!-- MODAL: RECORD TEMPERATURE (NURSE)     -->
+  <!-- ===================================== -->
+  <div id="temp-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border border-slate-200">
+      
+      <div class="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+        <div>
+          <h3 id="temp-modal-title" class="font-bold text-slate-900 text-base">Record Temperature</h3>
+          <p id="temp-modal-subtitle" class="text-xs text-slate-500 mt-0.5">Quarantine Vitals Protocol</p>
+        </div>
+        <button onclick="closeTempModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        
+        <!-- Duplicate Entry Warning -->
+        <div id="temp-warning-container" class="hidden"></div>
+
+        <!-- Temperature Input & Gauge -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Measured Body Temperature (<span id="temp-unit-label">°C</span>):
+          </label>
+          <div class="flex items-center space-x-3">
+            <input type="number" id="temp-input-val" step="0.1" min="32" max="43" oninput="updateTempPreview()" class="w-full text-2xl font-black text-slate-900 border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-sky-500 text-center">
+            <span id="temp-classification-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Normal</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Normal: &lt;37.5°C • Low-Grade: 37.5–37.9°C • High Fever: ≥38.0°C</p>
+        </div>
+
+        <!-- Symptoms Checklist -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Associated Observed Symptoms:</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+              <input type="checkbox" value="Shivering" class="symptom-chk rounded text-sky-600">
+              <span>Shivering / Chills</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+              <input type="checkbox" value="Cough" class="symptom-chk rounded text-sky-600">
+              <span>Persistent Cough</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+              <input type="checkbox" value="Shortness of breath" class="symptom-chk rounded text-sky-600">
+              <span>Shortness of Breath</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+              <input type="checkbox" value="Lethargy" class="symptom-chk rounded text-sky-600">
+              <span>Severe Fatigue</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Nurse Clinical Notes -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nurse Observation Notes (Optional):</label>
+          <input type="text" id="temp-notes-input" placeholder="e.g., Patient took paracetamol at 6 AM..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
+        <button onclick="closeTempModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">
+          Cancel
+        </button>
+        <button onclick="submitTemperature()" class="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow transition">
+          Save & Update Doctor Queue
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================== -->
+  <!-- MODAL: DOCTOR CLINICAL ROUND          -->
+  <!-- ===================================== -->
+  <div id="doctor-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col">
+      
+      <div class="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+        <div>
+          <h3 id="doc-modal-title" class="font-bold text-slate-900 text-base">Physician Medical Round</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Review Clinical History, Fever Streak & Treatment Plan</p>
+        </div>
+        <button onclick="closeDoctorModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 flex-1">
+        
+        <!-- Patient Details Summary Strip -->
+        <div id="doc-modal-patient-details"></div>
+
+        <!-- Warning: Unmeasured morning vitals -->
+        <div id="doc-unmeasured-warning" class="hidden"></div>
+
+        <!-- 3-Day Fever-Free Streak Visualizer -->
+        <div id="doc-streak-display"></div>
+
+        <!-- Interactive Temperature Trajectory Chart -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-700">Temperature Trajectory Chart (Past 7 Days):</span>
+            <span class="text-[10px] text-rose-600 font-semibold">Dashed Line = 38.0°C Fever Threshold</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="patient-temp-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Treatment Plan Adjustment -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Prescribed Treatment Regimen:</label>
+          <input type="text" id="doc-treatment-field" placeholder="e.g. Antiviral Therapy + IV Hydration..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <!-- Doctor Clinical Round Notes -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Physician Round Progress Notes:</label>
+          <textarea id="doc-clinical-notes" rows="2" placeholder="Document patient status, respiratory sounds, fever response..." class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <button onclick="markPatientDeceasedPrompt()" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition border border-rose-200">
+          ⚠️ Record Deceased Outcome
+        </button>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="closeDoctorModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">
+            Close
+          </button>
+          <button onclick="saveDoctorRound(false)" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition">
+            Save Round Notes
+          </button>
+          <button id="doc-discharge-btn" onclick="saveDoctorRound(true)" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition">
+            ⭐ Authorize Discharge
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================== -->
+  <!-- MODAL: ADMIN ADMIT PATIENT            -->
+  <!-- ===================================== -->
+  <div id="admit-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden border border-slate-200">
+      
+      <div class="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">Admit New Quarantine Patient</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Assign room and initialize clinical record</p>
+        </div>
+        <button onclick="closeAdmitModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Available Room (1-74):</label>
+          <select id="admit-room-select" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 bg-white"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Full Patient Name:</label>
+          <input type="text" id="admit-name" placeholder="e.g. John Doe" class="w-full text-xs border border-slate-300 rounded-lg p-2.5">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Age:</label>
+          <input type="number" id="admit-age" value="35" min="1" max="110" class="w-full text-xs border border-slate-300 rounded-lg p-2.5">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Admission Baseline Temperature (°C):</label>
+          <input type="number" id="admit-temp" value="38.4" step="0.1" min="32" max="43" class="w-full text-xs border border-slate-300 rounded-lg p-2.5">
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
+        <button onclick="closeAdmitModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition">
+          Cancel
+        </button>
+        <button onclick="submitAdmission()" class="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition">
+          Confirm Admission
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
