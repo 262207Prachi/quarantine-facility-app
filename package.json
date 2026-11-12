@@ -1,0 +1,11 @@
+{
+  "name": "virus-quarantine-facility-app",
+  "version": "1.0.0",
+  "description": "Temperature tracking, clinical rounds, bed turnover, and mortality monitoring for 74-bed quarantine facility",
+  "scripts": {
+    "start": "python -m http.server 3000"
+  },
+  "keywords": ["quarantine", "healthcare", "temperature-tracker", "clinical-workflow"],
+  "author": "Medical IT Response Team",
+  "license": "MIT"
+}
